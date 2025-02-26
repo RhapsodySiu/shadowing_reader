@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:js_interop';
+import 'dart:html' as html;
 import 'package:web/web.dart' as web;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -42,21 +44,17 @@ class _ShadowVideoPlayerState extends State<ShadowVideoPlayer> {
 
   Future<void> _initializeVideo() async {
     try {
-      print('Trying to init video: ${widget.fileSrc.path}');
-
       if (kIsWeb) {
-        // Get bytes from PlatformFile widget.fileSrc
-        // final bytes = await File(widget.fileSrc.path!).readAsBytes();
-        
-        // // Create web.JSArray from the bytes
-        // final jsArray = web.JSArray.from(List<int>.from(bytes));
-        
-        // // Create web.Blob from js array obtained
-        // final blob = web.Blob([jsArray]);
-        
-        // // Create object url from web.Blob 
-        // final url = web.Url.createObjectUrlFromBlob(blob);
+        print("web file bytes ${widget.fileSrc.bytes?.length}");
+        final blob = Blob.fromBytes(widget.fileSrc.bytes!);
+
+        print("blob created ${blob.isNull}"); 
+        final url = web.URL.createObjectURL(blob);
+
+        print("web get url $url");
+        _controller = VideoPlayerController.networkUrl(Uri.parse(url));
       } else {
+        print('Trying to init video: ${widget.fileSrc.path}');
         _controller = VideoPlayerController.file(File(widget.fileSrc.path!));
       }
       
