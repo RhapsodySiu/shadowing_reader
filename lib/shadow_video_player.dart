@@ -1,26 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
-import 'dart:js_interop';
-import 'dart:html' as html;
-import 'package:web/web.dart' as web;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-
-@JS("Blob")
-extension type Blob._(JSObject _) implements JSObject {
-  external factory Blob(JSArray<JSArrayBuffer> blobParts, JSObject? options);
-  
-  factory Blob.fromBytes(List<int> bytes) {
-    final data = Uint8List.fromList(bytes).buffer.toJS;
-    return Blob([data].toJS, null);
-  }
-  
-  external JSArrayBuffer? get blobParts;
-  external JSObject? get options;
-}
 
 class ShadowVideoPlayer extends StatefulWidget {
   const ShadowVideoPlayer({super.key, required this.fileSrc});
@@ -46,13 +29,6 @@ class _ShadowVideoPlayerState extends State<ShadowVideoPlayer> {
     try {
       if (kIsWeb) {
         print("web file bytes ${widget.fileSrc.bytes?.length}");
-        final blob = Blob.fromBytes(widget.fileSrc.bytes!);
-
-        print("blob created ${blob.isNull}"); 
-        final url = web.URL.createObjectURL(blob);
-
-        print("web get url $url");
-        _controller = VideoPlayerController.networkUrl(Uri.parse(url));
       } else {
         print('Trying to init video: ${widget.fileSrc.path}');
         _controller = VideoPlayerController.file(File(widget.fileSrc.path!));

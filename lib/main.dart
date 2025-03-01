@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shadowing_reader/notifiers/theme_notifier.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/home_page.dart';
 import 'pages/settings_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ThemeNotifier(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -35,21 +42,22 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: _currentSeedColor),
-        useMaterial3: true,
-      ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => MyHomePage(
-              title: 'Shadowing Player Test',
-              onThemeChanged: _updateSeedColor,
-            ),
-        '/settings': (context) => const SettingsPage(),
-        '/dashboard': (context) => const DashboardPage(),
-      },
-    );
+    return Consumer<ThemeNotifier>(builder: (context, themeNotifier, child) {
+      return MaterialApp(
+        title: 'Flutter Demo',
+        theme: (themeNotifier.isDarkMode ? ThemeData.dark() : ThemeData.light()).copyWith(
+          colorScheme: ColorScheme.fromSeed(seedColor: themeNotifier.currentSeedColor),
+        ),
+        initialRoute: '/',
+        routes: {
+          '/': (context) => MyHomePage(
+                title: 'Shadowing Player Test',
+                onThemeChanged: _updateSeedColor,
+              ),
+          '/settings': (context) => const SettingsPage(),
+          '/dashboard': (context) => const DashboardPage(),
+        },
+      );
+    });
   }
 }
