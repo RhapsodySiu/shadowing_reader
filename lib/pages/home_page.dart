@@ -1,40 +1,81 @@
+import 'dart:js_interop';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shadowing_reader/components/shadow_video_player.dart';
+import 'package:shadowing_reader/container/video_provider.dart';
+import 'package:shadowing_reader/models/video.dart';
+import 'package:shadowing_reader/notifiers/video_notifier.dart';
+import 'package:web/web.dart' as web;
 import 'package:shadowing_reader/components/line_player_card.dart';
 
-import '../shadow_video_player.dart';
+_getMimetypeByExtension(String? extension) {
+  switch (extension) {
+    case 'mp4':
+      return 'video/mp4';
+    case 'webm':
+      return 'video/webm';
+    case 'ogg':
+      return 'video/ogg';
+    default:
+      return 'video/mp4';
+  }
+}
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({
     super.key,
     required this.title,
-    required this.onThemeChanged,
   });
 
   final String title;
-  final void Function(String) onThemeChanged;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  PlatformFile? _selectedVideo;
-  String _selectedOption = 'Purple Theme'; // Updated default option
-  bool tempHasVideo = true;
-
   Future<void> _pickVideo() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.video,
-        withData: true,
-      );
+      final videoNotifier = context.read<VideoNotifier>();
 
-      if (result != null) {
-        setState(() {
-          _selectedVideo = result.files.first;
-        });
+      if (kIsWeb) {
+        web.HTMLInputElement input = web.HTMLInputElement()..type = 'file';
+        input.click();
+
+        await input.onChange.first;
+        if (input.files != null && (input.files?.length ?? 0) > 0) {
+          final file = input.files!.item(0);
+          
+          if (!file.isUndefinedOrNull) {
+            debugPrint(file!.size.toString());
+            final objectUrl = web.URL.createObjectURL(file);
+
+            videoNotifier.setWebVideo(MyVideo(title: file.name, thumbnail: '', webVideoUrl: Uri.dataFromString(objectUrl)));
+          } else {
+            throw Exception('File is null or undefined');
+          }
+        }
+      } else {
+        FilePickerResult? result = await FilePicker.platform.pickFiles(
+          type: FileType.video,
+          withData: false,
+          withReadStream: true,
+        );
+
+        if (result != null) {
+          final file = result.files.first;
+
+          if (file.readStream != null) {
+            // final bytes = await _readStreamToBytes(file.readStream!);
+
+            // TODO set selected video
+          } else {
+            throw Exception('File read stream is null');
+          }
+        }
       }
     } catch (e) {
       print('Error picking video: $e');
@@ -43,110 +84,78 @@ class _MyHomePageState extends State<MyHomePage> {
 
   _buildSelectPage() {
     return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            ElevatedButton(
-              onPressed: _pickVideo,
-              child: const Text('Select Video'),
-            ),
-            const SizedBox(height: 16), // Add spacing between buttons
-            ElevatedButton(
-              onPressed: _showOptionsDialog,
-              child: Text('Select Theme: $_selectedOption'),
-            ),
-            if (_selectedVideo != null)
-              ShadowVideoPlayer(fileSrc: _selectedVideo!)
-          ],
-        ),
-      );
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          ElevatedButton(
+            onPressed: _pickVideo,
+            child: const Text('Select Video'),
+          ),
+        ],
+      ),
+    );
   }
 
   _buildPlayerPage() {
+    final VideoNotifier videoNotifier = Provider.of<VideoNotifier>(context);
+
+    if (!videoNotifier.hasVideo) {
+      throw Exception('Unaccessible code: videoNotifier has no video');
+    }
+
+    final test = Theme.of(context);
+    debugPrint(test.toString());
     return Stack(
       children: [
         ListView.builder(
           itemCount: 50,
           itemBuilder: (context, index) {
-            return LinePlayerCard();
+            return LinePlayerCard(
+              isActive: index == 3,
+            );
           },
         ),
         Positioned(
           right: 16,
           bottom: 16,
           child: Container(
-            width: 160,
-            height: 90,
+            width: 640,
+            height: 480,
             decoration: BoxDecoration(
               color: Colors.black54,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Center(
-              child: Text(
-                'Video Player',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
+            child: ShadowVideoPlayer(video: videoNotifier.video),
           ),
         ),
       ],
     );
   }
 
-  Future<void> _showOptionsDialog() async {
-    final options = ['Purple Theme', 'Green Theme', 'Blue Theme', 'Red Theme'];
-
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Select Theme'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: options.map((option) {
-                return ListTile(
-                  title: Text(option),
-                  onTap: () {
-                    Navigator.of(context).pop(option);
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-        );
-      },
-    );
-
-    if (choice != null) {
-      setState(() {
-        _selectedOption = choice;
-      });
-      widget.onThemeChanged(choice); // Notify parent widget about the change
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return Consumer<VideoNotifier>(
+      builder: (context, videoNotifier, child) => Scaffold(
+        appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.pushNamed(context, '/settings');
-            },
+          icon: const Icon(Icons.settings),
+          onPressed: () {
+            Navigator.pushNamed(context, '/settings');
+          },
           ),
           IconButton(
-            icon: const Icon(Icons.dashboard),
-            onPressed: () {
-              Navigator.pushNamed(context, '/dashboard');
-            },
+          icon: const Icon(Icons.dashboard),
+          onPressed: () {
+            Navigator.pushNamed(context, '/dashboard');
+          },
           ),
         ],
+        ),
+        body: videoNotifier.hasVideo ? _buildPlayerPage() : _buildSelectPage(),
       ),
-      body: tempHasVideo ? _buildPlayerPage() : _buildSelectPage(),
-    );
+      );
   }
 }

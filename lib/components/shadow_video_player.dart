@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shadowing_reader/models/video.dart';
 import 'package:video_player/video_player.dart';
 
 class ShadowVideoPlayer extends StatefulWidget {
-  const ShadowVideoPlayer({super.key, required this.fileSrc});
+  const ShadowVideoPlayer({super.key, required this.video});
 
-  final PlatformFile fileSrc;
+  final MyVideo video;
 
   @override
   State<ShadowVideoPlayer> createState() => _ShadowVideoPlayerState();
@@ -28,10 +28,11 @@ class _ShadowVideoPlayerState extends State<ShadowVideoPlayer> {
   Future<void> _initializeVideo() async {
     try {
       if (kIsWeb) {
-        print("web file bytes ${widget.fileSrc.bytes?.length}");
+        _controller = VideoPlayerController.networkUrl(widget.video.webVideoUrl);
       } else {
-        print('Trying to init video: ${widget.fileSrc.path}');
-        _controller = VideoPlayerController.file(File(widget.fileSrc.path!));
+        // print('Trying to init video: ${widget.fileSrc.path}');
+        // _controller = VideoPlayerController.file(File(widget.fileSrc.path!));
+        throw Exception('Video player not implemented for this platform');
       }
       
       await _controller.initialize();
