@@ -1,9 +1,43 @@
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shadowing_reader/components/line_player_card.dart';
+import 'package:shadowing_reader/components/web_video_player.dart';
 
-import '../shadow_video_player.dart';
+
+_getMimetypeByExtension(String? extension) {
+  switch (extension) {
+    case 'mp4':
+      return 'video/mp4';
+    case 'webm':
+      return 'video/webm';
+    case 'ogg':
+      return 'video/ogg';
+    default:
+      return 'video/mp4';
+  }
+}
+
+Future<Uint8List> _readStreamToBytes(Stream<List<int>> stream) async {
+  final chunks = <List<int>>[];
+  int length = 0;
+  
+  await for (final chunk in stream) {
+    chunks.add(chunk);
+    length += chunk.length;
+  }
+  
+  // Concatenate all chunks into a single Uint8List
+  final result = Uint8List(length);
+  int offset = 0;
+  for (final chunk in chunks) {
+    result.setRange(offset, offset + chunk.length, chunk);
+    offset += chunk.length;
+  }
+  
+  return result;
+}
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({
@@ -21,20 +55,29 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   PlatformFile? _selectedVideo;
-  String _selectedOption = 'Purple Theme'; // Updated default option
-  bool tempHasVideo = true;
+  bool tempHasVideo = false;
 
   Future<void> _pickVideo() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.video,
-        withData: true,
+        withData: false,
+        withReadStream: true,
       );
 
       if (result != null) {
-        setState(() {
-          _selectedVideo = result.files.first;
-        });
+        final file = result.files.first;
+
+        if (file.readStream != null) {
+          // final bytes = await _readStreamToBytes(file.readStream!);
+
+          setState(() {
+            _selectedVideo = file;
+            tempHasVideo = true;
+          });
+        } else {
+          throw Exception('File read stream is null');
+        }
       }
     } catch (e) {
       print('Error picking video: $e');
@@ -50,43 +93,39 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: _pickVideo,
               child: const Text('Select Video'),
             ),
-            const SizedBox(height: 16), // Add spacing between buttons
-            ElevatedButton(
-              onPressed: _showOptionsDialog,
-              child: Text('Select Theme: $_selectedOption'),
-            ),
-            if (_selectedVideo != null)
-              ShadowVideoPlayer(fileSrc: _selectedVideo!)
           ],
         ),
       );
   }
 
   _buildPlayerPage() {
+    final test = Theme.of(context);
+    debugPrint(test.toString());
     return Stack(
       children: [
         ListView.builder(
           itemCount: 50,
           itemBuilder: (context, index) {
-            return LinePlayerCard();
+            return LinePlayerCard(
+              isActive: index == 3,
+            );
           },
         ),
         Positioned(
           right: 16,
           bottom: 16,
           child: Container(
-            width: 160,
-            height: 90,
-            decoration: BoxDecoration(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Center(
-              child: Text(
-                'Video Player',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
+                width: 640,
+                height: 480,
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: WebVideoPlayer(
+                  id: 'TEST',
+                  minetype: _getMimetypeByExtension(_selectedVideo?.extension),
+                  bytes: _selectedVideo?.bytes ?? Uint8List(0),
+                ),
           ),
         ),
       ],

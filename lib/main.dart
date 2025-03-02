@@ -46,7 +46,10 @@ class _MyAppState extends State<MyApp> {
       return MaterialApp(
         title: 'Flutter Demo',
         theme: (themeNotifier.isDarkMode ? ThemeData.dark() : ThemeData.light()).copyWith(
-          colorScheme: ColorScheme.fromSeed(seedColor: themeNotifier.currentSeedColor),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: themeNotifier.currentSeedColor,
+            brightness: themeNotifier.isDarkMode ? Brightness.dark : Brightness.light,
+          ),
         ),
         initialRoute: '/',
         routes: {
